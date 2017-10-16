@@ -1,0 +1,213 @@
+---
+title: "MSiA400 Assignment 1"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##EXERCISE 1
+
+
+```{r}
+#Reading in the data 
+library(tidyverse)
+tens <- read.table("Tensile.txt", header = T, sep = "\t")
+
+```
+
+The data in tensiles.txt is a table, so we have to to convert it to two vectors of data and group labels, as below.
+```{r}
+vector1 = list()
+vector2 = list()
+for(nam in names(tens)){
+  vector1 <- append(vector1, tens[[nam]]) #vector of data
+  vector2 <- append(vector2, rep(nam, length(tens[[nam]]))) #vector of group names
+}
+vector1 <- unlist(vector1)
+vector2<- unlist(vector2)
+```
+
+
+Function definition
+```{r}
+
+useraov<- function(vec1,vec2){
+  dat = list()
+  means = list()
+  lenlist = list()
+  sdlist = list()
+  #Dividing the data into individual groups
+  for(grp in unique(vec2)){
+    dat[[grp]] <- vec1[vec2==grp]
+    means[[grp]] <- mean(dat[[grp]])  
+    lenlist[[grp]] <- length(dat[[grp]])  
+    sdlist[[grp]] <- sd(unlist(dat[[grp]])) 
+  }
+  #Flattening to vectors again
+  dat <- unlist(dat)
+  means<- unlist(means)
+  lenlist <- unlist(lenlist)
+  sdlist <- unlist(sdlist)
+  xbar <- sum(means*lenlist)/sum(lenlist)
+  S.b <- sum(lenlist*((means - xbar)^2))/(length(unique(vec2)) - 1)
+
+  S.w <- (sum((lenlist-1)*(sdlist^2)))/(sum(lenlist) -length(unique(vec2)))
+  
+  Fval = S.b/S.w #F statistic
+  print(paste("F-statistic", Fval, sep = " "))
+  
+  Pval = pf(q = Fval, df1 = (length(unique(vec2)) - 1), df2 = (sum(lenlist) -length(unique(vec2))), lower.tail = FALSE)
+  print(paste("P-Value", Pval, sep = " "))
+  if(Pval < 0.05){
+    print("Reject Null Hypothesis")
+  } else{
+    print("Do not reject Null Hypothesis")
+  }
+  
+  
+}
+```
+
+Function Call for the given data
+```{r}
+useraov(vector1, vector2)
+```
+
+We can confirm the calculated values using the built in anova function, and see that they match:
+
+```{r}
+fit <- lm(vector1 ~ vector2, data = tens)
+anova(fit)
+```
+
+
+##Problem 2
+###a)
+Reading in the data, and printing the model summary with all predictors
+```{r}
+bostdata <- read.table("bostonhousing.txt", header = T, sep = "\t")
+reg <- lm(MEDV ~ ., data = bostdata)
+summary(reg)
+```
+
+Both Indus and Age are numerical variables (not categorical) with low t-values and high corresponding p values, indicating that they are least likely to be in the best model as they explain very little of the variance of the output.
+
+### b)
+We remove these two variables from the model and look again.
+```{r}
+
+reg.picked <- lm( MEDV~ . -AGE - INDUS, data = bostdata)
+summary(reg.picked)
+```
+In this model, all the remaining variables are significant, and there is an improvement in the adjusted $R^2$.
+
+### c)
+```{r}
+SSE1 = sum(resid(reg)^2)
+MSE1 = SSE1/(length(bostdata$MEDV) - (length(reg$coefficients))) #length(coeffs) = p+1
+SSE2 = sum(resid(reg.picked)^2)
+MSE2 = SSE2/(length(bostdata$MEDV) - (length(reg.picked$coefficients)))
+MSE1
+MSE2
+
+
+```
+
+```{r}
+SAE1 = sum(abs(resid(reg)))
+SAE2 = sum(abs(resid(reg.picked)))
+MAE1 =  SAE1/(length(bostdata$MEDV) - (length(reg$coefficients)))
+MAE2 = SAE2/(length(bostdata$MEDV) - (length(reg.picked$coefficients)))
+MAE1
+MAE2
+```
+
+Based on both MSE and MAE, the model reg.picked is preferred as the results are lower.
+
+
+### d)
+```{r}
+reg.step <- step(reg, direction = "back")
+
+```
+
+The step function is seen to eliminate the same two predictor variables as reg.picked.
+
+
+## Problem 3
+
+```{r}
+#reading in data
+labdat <- read.table("labdata.txt", header = T)
+```
+
+Printing out the summary of the full model
+```{r}
+reg <- lm(y~., data = labdat)
+summary(reg)
+```
+
+### b)
+We plot each explanatory variable against the response variable.
+
+```{r}
+plot(labdat$y, labdat$x1)
+```
+```{r}
+plot(labdat$y, labdat$x2)
+```
+
+```{r}
+plot(labdat$y, labdat$x3)
+```
+
+
+```{r}
+plot(labdat$y, labdat$x4)
+```
+
+```{r}
+plot(labdat$y, labdat$x5)
+```
+
+```{r}
+plot(labdat$y, labdat$x6)
+```
+
+```{r}
+plot(labdat$y, labdat$x7)
+```
+```{r}
+plot(labdat$y, labdat$x8)
+```
+
+Based on the above plots, predictors x1, x2 and x3 look like candidates for piecewise linear regression. We can pick x1 as the predictor to build a piecewise regression on. The plot is attached in the submission.
+
+```{r}
+png(filename = "x1plot.png")
+plot(labdat$x1, labdat$y)
+dev.off()
+```
+
+
+###c)
+We can find the mean of x1 and use that as the guess for the segmentation point for the piecewise regression.
+```{r}
+meanx1 <- mean(labdat$x1)
+meanx1
+```
+The mean of the variable x1 is 17.19417
+
+```{r}
+library(segmented)
+reg.x1 <- lm(y ~ x1, data = labdat)
+piecewisemodel <- segmented(reg.x1, seg.Z = ~x1, psi = meanx1)
+summary(piecewisemodel)
+```
+
+The piecewise regression reg.piece against one variable x1 is superior to the entire multiple linear regression reg, since it has a higher $R^2$.
+
