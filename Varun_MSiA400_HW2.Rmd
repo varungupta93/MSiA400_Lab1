@@ -1,0 +1,124 @@
+---
+title: "Varun_MSiA400_Assignment2"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+redwine <- read.csv("redwine.txt", sep = "\t", header = T)
+```
+
+
+## Problem 1
+Mean of RS disregarding missing values
+```{r}
+mean(redwine$RS, na.rm = T)
+```
+
+Similarly, mean of SD disregarding missing values
+```{r}
+mean(redwine$SD, na.rm = T)
+```
+
+
+## Problem 2
+
+```{r}
+SD.obs <- redwine$SD[!is.na(redwine$SD)]
+FS.obs <- redwine$FS[!is.na(redwine$SD)]
+ABC <- lm(SD.obs ~ FS.obs)
+coefficients(ABC)
+```
+The model is therefore $\hat{SD.obs}$ = 13.185505 + 2.086077 FS.obs
+
+```{r}
+summary(ABC)
+```
+A quick look at the summary of this model shows us that the coefficients are highly significant, indicating a definite linear relationship.
+
+## Problem 3
+
+```{r}
+SD.predicted <- predict(ABC, newdata = data.frame(FS.obs = redwine$FS[is.na(redwine$SD)]))
+redwine$SD[is.na(redwine$SD)] <- SD.predicted
+mean(redwine$SD)
+```
+The mean of SD after imputation is 46.30182
+
+## Problem 4
+
+```{r}
+
+avg.imp <- function(a,  avg){
+missing <- is.na(a)
+n.missing <- sum(missing)
+a.obs <- a[!missing]
+imputed <- a
+imputed[missing]<- avg
+return(imputed)
+}
+rsavg <- mean(redwine$RS[!is.na(redwine$RS)])
+redwine$RS <- avg.imp(redwine$RS, rsavg)
+mean(redwine$RS)
+```
+Obviously the mean remains unchanged, at 2.53792
+
+## Problem 5
+
+```{r}
+fullmodel <- lm(QA~., data = redwine)
+coefficients(fullmodel)
+```
+The coefficients of the full linear model are seen above.
+
+##Problem 6
+```{r}
+summary(fullmodel)
+```
+
+Based on the p-values, the attribute PH is least likely to be related to QA given its large 0.414 p-value.
+
+## Problem 7
+```{r}
+library(DAAG)
+```
+
+```{r}
+validation <- CVlm(m = 5, form.lm = formula(QA ~ .), data = redwine)
+
+```
+
+The average error rate for 5-fold validation was seen to be a mean-square error of 63.5.
+
+## Problem 8
+
+```{r}
+phmean <- mean(redwine$PH[!is.na(redwine$PH)])
+phsd <- sd(redwine$PH[!is.na(redwine$PH)])
+ph.ub <- phmean + (3*phsd)
+ph.lb <- phmean - (3*phsd)
+```
+
+```{r}
+redwine2 <- subset(redwine, PH < ph.ub & PH > ph.lb)
+nrow(redwine2)
+```
+
+redwine2 has 1580 rows, which means 19 observations were removed due to outliers in the attribute PH.
+
+
+## Problem 9
+```{r}
+winemodel2 <- lm(QA ~., data = redwine2)
+summary(winemodel2)
+```
+The R squared in the new model has gone up from .358 to .363, suggesting an improvement. Therefore the new model has slightly better performance.
+
+Based on the p-values, the 5 attributes that are most likely to be related to QA now are:
+VA, CH, SD, SU and AL, since they have the lowest p-values.
