@@ -1,0 +1,145 @@
+---
+title: "MSiA400_Lab_Assignment3"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+markv = read.table("markov100.txt", header = F)
+P <- as.matrix(markv)
+```
+
+```{r}
+library(expm)
+```
+## Problem 1a
+We calculate the probability distribution after 10 transitions given State 1 now by multiplying the current state vector with the probability matrix taken to the power of 10.
+```{r}
+statevec <- c(1,rep(0,99))
+tenstep <- statevec %*% (P%^%10) 
+tenstep[5]
+```
+
+The probability of being in state 5 can be seen to be 0.045.
+
+## Problem 1b
+After initializing the evenly possible initial states, we calculate the probabilities after 10 steps.
+```{r}
+statevec <- c(1/3,1/3,1/3,rep(0,97))
+tenstep <- statevec %*% (P%^%10)
+tenstep[10]
+```
+The probability of being in State 10 is seen to be 0.082.
+
+## Problem 1c
+We calculate the steady state probabilities below.
+
+```{r}
+SS <- t(P) - diag(100)
+SS[100,] <- rep(1,100)
+rhs <- c(rep(0,99),1)
+Pi <- solve(SS) %*% rhs
+#Steay state prob of 1:
+Pi[1]
+```
+
+We see that the steady state probability of being in state 1 is 0.0126.
+
+
+## Problem 1d
+
+```{r}
+B <- P[-100,-100]
+Q <- diag(99) - B
+e <- c(rep(1,99))
+m <- solve(Q) %*% e
+m[1]
+```
+The mean first passage time from State 1 to State 100 is seen to be roughly 255.
+
+
+#Problem 2
+
+```{r}
+web <- read.table("webtraffic.txt", sep = "\t", header = T)
+```
+
+
+##Problem 2a
+
+```{r}
+sums <- colSums(web)
+Traffic <- matrix(sums, nrow = 9, byrow = TRUE)
+Traffic
+```
+
+##Problem 2b
+We observe that column 1 and row 9 are 0s.
+```{r}
+Traffic[9,1] <- 1000
+#P <- Traffic/rowSums(Traffic)
+P <- (scale(t(Traffic), center = FALSE, scale = colSums(t(Traffic))))
+P <- t(as.matrix(P))
+P
+```
+
+## Problem 2c
+
+```{r}
+SS <- t(P) - diag(9)
+SS[9,] <- rep(1,9)
+rhs <- c(rep(0,8),1)
+Pi <- solve(SS) %*% rhs
+Pi
+```
+The steady state probability vector is displayed above.
+
+
+##Problem 2d
+
+One way to calculate the total time spent on the website given the traffic data provided would be to calculate the number of visitors to each page and multiply those figures with the average time spent. The column sums would show how many visitors went to that page.
+```{r}
+avgtime <- c(0.1,2,3,5,5,3,3,2)
+pagevisitors <- colSums(Traffic[,1:8])
+totTime <- avgtime %*% pagevisitors/1000
+totTime
+```
+We see that for this data, the total time spent per visitor was on average 14.563 minutes.
+
+
+
+#Problem 2e
+We redirect the number of transitions in the Traffic matrix as given by the question.
+```{r}
+OrigTraffic <- Traffic
+Traffic[2,6] <- Traffic[2,6] + (Traffic[2,3]*0.3)
+Traffic[2,3] <- Traffic[2,3] * (1-0.3)
+Traffic[2,7] <- Traffic[2,7] + (Traffic[2,3] * 0.2)
+Traffic[2,4] <- Traffic[2,4]* (1-0.2)
+
+```
+
+Re-calculating transition probabilities.
+```{r}
+P <- (scale(t(Traffic), center = FALSE, scale = colSums(t(Traffic))))
+P <- t(as.matrix(P))
+```
+
+Again we find the steady state probailities.
+```{r}
+SS <- t(P) - diag(9)
+SS[9,] <- rep(1,9)
+rhs <- c(rep(0,8),1)
+Pi2<- solve(SS) %*% rhs
+Pi2
+```
+```{r}
+Pi
+```
+Comparing the new steady state probabilities to the old ones, we see that there is some improvement from before, but pages 3 and 4 remain dominant compared to the others.
